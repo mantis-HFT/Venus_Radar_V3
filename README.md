@@ -1,294 +1,158 @@
-# Venus Radar V2 - Crypto Futures Risk Scanner
+# 📡 Venus Radar V3.6 — AI Crypto Risk Scanner
 
-A real-time risk detection system for cryptocurrency perpetual futures that identifies potential reversals and overextension risks.
-
-## Overview
-
-Venus Radar monitors crypto futures markets (Bybit/Binance) every 10 minutes to detect coins showing signs of:
-- Potential price reversals
-- Overextension risk
-- Unusual volume spikes
-- Momentum exhaustion
-
-It calculates a **PPAS (Potential Pump Alert Score)** from 0-100 that indicates risk level.
-
-## Features
-
-- ✅ Multi-exchange support (Bybit, Binance)
-- ✅ Parallel processing of multiple coins
-- ✅ Smart filtering (top gainers + losers)
-- ✅ SQLite database for tracking alerts
-- ✅ Telegram notifications (optional)
-- ✅ Customizable alert thresholds
-- ✅ 10-minute automated scanning
-
-## Installation
-
-### 1. Install Python 3.8+
-
-Make sure you have Python 3.8 or higher installed.
-
-### 2. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-Or install manually:
-```bash
-pip install ccxt pandas numpy requests
-```
-
-### 3. Configure Settings
-
-Open `venus_radar_v2.py` and modify the configuration in the `main()` function:
-
-```python
-config = AlertConfig(
-    HIGH_RISK_PPAS=85,              # PPAS threshold for high risk alerts
-    POTENTIAL_RISK_PPAS=75,         # PPAS threshold for potential risk
-    HIGH_DEVIATION_THRESHOLD=15.0,  # High price deviation %
-    MEDIUM_DEVIATION_THRESHOLD=10.0, # Medium price deviation %
-    VERY_LOW_RP_THRESHOLD=30,       # Very low reversal potential
-    LOW_RP_THRESHOLD=50,            # Low reversal potential
-    
-    # Telegram settings (optional)
-    TELEGRAM_ENABLED=False,         # Set to True to enable
-    TELEGRAM_BOT_TOKEN="",          # Your Telegram bot token
-    TELEGRAM_CHAT_ID=""             # Your Telegram chat ID
-)
-```
-
-### 4. Choose Exchange
-
-In the `main()` function, set your preferred exchange:
-
-```python
-exchange = 'bybit'  # or 'binance'
-```
-
-## Usage
-
-### Run the Scanner
-
-```bash
-python venus_radar_v2.py
-```
-
-The scanner will:
-1. Run immediately on start
-2. Repeat every 10 minutes automatically
-3. Display top 10 coins by PPAS score
-4. Generate alerts for high-risk situations
-5. Log all data to SQLite database
-
-### Output Example
-
-```
-================================================================================
-Starting Venus Radar scan - 2024-02-08 14:30:00
-================================================================================
-Fetching top 100 futures by volume...
-Found 100 coins
-Applying smart filter (top gainers + losers)...
-Filtered to 42 coins for analysis
-Analyzing 42 filtered coins...
-
-================================================================================
-TOP 10 COINS BY PPAS SCORE
-================================================================================
-
-1. BTC/USDT
-   PPAS: 78.45
-   Deviation: 12.34%
-   RP Score: 45.67
-   24h Volume: $12,345,678,901
-   Window: 4h
-
-2. ETH/USDT
-   PPAS: 72.31
-   ...
-
-================================================================================
-⚠️  2 ALERTS GENERATED
-================================================================================
-
-POTENTIAL RISK: BTC/USDT
-   PPAS: 78.45
-   Deviation: 12.34%
-   RP: 45.67
-
-HIGH RISK: SHIB/USDT [REPEAT]
-   PPAS: 88.12
-   Deviation: 18.90%
-   RP: 28.45
-```
-
-## Alert Levels
-
-### HIGH RISK 🚨
-Triggered when:
-- PPAS ≥ 85, OR
-- Deviation ≥ 15% AND RP < 30
-
-**Action:** Consider pausing grid bots, reducing position size, or exiting
-
-### POTENTIAL RISK ⚠️
-Triggered when:
-- PPAS ≥ 75, OR  
-- Deviation ≥ 10% AND RP < 50
-
-**Action:** Monitor closely, prepare to reduce exposure
-
-## PPAS Score Components
-
-The PPAS score (0-100) is calculated from 10 weighted metrics:
-
-| Component | Description | Weight |
-|-----------|-------------|--------|
-| **n_vr** | Volatility (annualized) | 15% |
-| **n_laf** | Liquidity Attention Factor | 15% |
-| **n_sci** | Social/Community Interest | 15% |
-| **n_hms** | High Momentum Spike (recent vs avg volume) | 10% |
-| **n_lvr** | Largest Volume Ratio (max spike) | 10% |
-| **n_sbr** | Short-term Burst Ratio (1h vs overall) | 15% |
-| **n_vpr** | Volume Pattern Ratio (short vs long term) | 10% |
-| **n_tams** | Technical Analysis Momentum (RSI + SMA) | 10% |
-| **n_ocai** | On-Chain Activity Indicator (volume proxy) | 10% |
-| **rp** | Reversal Potential (inverted: low RP = high risk) | 15% |
-
-**Reversal Potential (RP)** is calculated as:
-```
-RP = 100 - (streak_penalty) - (deviation_penalty)
-```
-
-Where:
-- **Streak penalty:** Consecutive up/down candles (×5 per candle, max 30)
-- **Deviation penalty:** Distance from moving average (×2 per %, max 40)
-
-Lower RP = Higher risk of reversal
-
-## Database
-
-The scanner creates `pdrs_venus_radar_v2.db` with three tables:
-
-- **alerts_history:** All generated alerts with timestamps
-- **price_cache:** Cached OHLCV data (for future optimization)
-- **coin_rankings:** Complete PPAS rankings for each scan
-
-You can query this database for historical analysis.
-
-## Telegram Setup (Optional)
-
-### 1. Create a Telegram Bot
-
-1. Open Telegram and search for [@BotFather](https://t.me/botfather)
-2. Send `/newbot` and follow instructions
-3. Copy your bot token (looks like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
-
-### 2. Get Your Chat ID
-
-1. Search for [@userinfobot](https://t.me/userinfobot) on Telegram
-2. Send `/start`
-3. Copy your chat ID (a number)
-
-### 3. Enable in Config
-
-```python
-TELEGRAM_ENABLED=True,
-TELEGRAM_BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz",
-TELEGRAM_CHAT_ID="123456789"
-```
-
-## Customization
-
-### Change Scan Interval
-
-Modify in `main()`:
-```python
-radar.run_loop(interval_minutes=10)  # Change to 5, 15, 30, etc.
-```
-
-### Adjust Filter Count
-
-In `get_smart_filtered_coins()`:
-```python
-top_gainers = [c['symbol'] for c in changes[:30]]  # Change 30
-top_losers = [c['symbol'] for c in changes[-10:]]  # Change 10
-```
-
-### Modify PPAS Calculation
-
-The core logic is in the `calculate_ppas()` method. You can:
-- Adjust weights for each component
-- Change normalization factors
-- Add new indicators
-- Modify the temporary 1.8x boost
-
-## Troubleshooting
-
-### "No coins fetched"
-- Check internet connection
-- Verify exchange API is accessible
-- Try switching exchange (bybit ↔ binance)
-
-### "Not enough data for symbol"
-- Normal for newly listed coins
-- Scanner will skip and continue
-
-### Rate limits
-- CCXT has built-in rate limiting
-- If issues persist, increase scan interval
-
-### Low PPAS scores
-- This is currently expected (see document)
-- The scoring formula may need tuning
-- Monitor the raw component values in logs
-
-## Performance Notes
-
-- **Scan time:** ~30-90 seconds for 40 coins (parallel processing)
-- **Memory:** ~100-200 MB
-- **Database:** Grows ~1 MB per day (approximate)
-- **CPU:** Low (mostly I/O bound)
-
-## Known Issues
-
-1. **PPAS scores tend to be low** - Volume-based metrics need tuning
-2. **Fixed components** (LAF, SCI) don't add value yet
-3. **Needs more live testing** to calibrate thresholds
-
-## Roadmap
-
-- [ ] Add CoinGecko/CoinMarketCap integration for LAF/SCI
-- [ ] Implement adaptive thresholds based on market conditions
-- [ ] Add backtesting module
-- [ ] Web dashboard for monitoring
-- [ ] Multi-timeframe correlation analysis
-- [ ] Machine learning score optimization
-
-## Safety Disclaimer
-
-⚠️ **This is a risk detection tool, NOT financial advice.**
-
-- Always do your own research
-- Use proper risk management
-- Never invest more than you can afford to lose
-- Past performance doesn't guarantee future results
-- Crypto trading is highly risky
-
-## License
-
-This is free software. Use at your own risk.
-
-## Support
-
-For issues or questions:
-1. Check the logs in the console output
-2. Examine the SQLite database for historical data
-3. Review the code comments for implementation details
+An AI-powered real-time crypto risk detection system built on Bybit, using a Random Forest ML model with 12 engineered KPIs to predict dangerous price moves before they happen.
 
 ---
 
-**Version:** 2.0  
-**Last Updated:** February 2024
+## 🆕 What's New in V3.6
+
+| Feature | Description |
+|---|---|
+| **Multi-Timeframe (MTF) Confirmation** | 1h + 4h bias filter adjusts PPAS ×0.85–×1.15 to reduce false signals |
+| **Adaptive Cooldown** | Alert cooldowns shorten automatically in high-volatility regimes |
+| **Weighted Ensemble** | Per-coin model 70% + Global model 30% for better predictions |
+| **Feature #12: Volume Climax** | Detects blow-off tops / capitulation via volume spike × trend strength |
+| **Walk-Forward Validation** | 3-fold time-series OOS AUC reported during training |
+| **Probability Calibration** | Isotonic regression calibration on global model probabilities |
+| **Dynamic ATR Zones** | Alert zones scale with PPAS tier (4 tiers) |
+| **Telegram Rate Guard** | Auto-retry on 429, message chunking for long alerts |
+| **Color Console UI** | PPAS color-coded, RSI + Sigma columns added to Top 10 |
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+---
+
+## 🏗️ Project Structure
+
+```
+Venus_Radar_V3.6/
+├── Venus_Radar_V3.6.py        # Main scanner (run this)
+├── Venus_Radar_V3.6.bat       # Windows auto-loop launcher
+├── auto_retrain_loop.bat      # 7-day ML retrain loop
+├── ml_retrain.py              # Python retrain pipeline launcher
+├── pdrs_calculator.py         # PDRS risk score engine
+├── config.ini                 # All configuration
+├── CHANGELOG.md
+├── README.md
+└── ml_enhancements/
+    ├── data_fetcher.py        # Async OHLCV fetcher (Bybit)
+    ├── train_ppas.py          # ML training pipeline
+    ├── ppas_global_model.pkl  # (generated after training)
+    └── models/                # (per-coin models, generated after training)
+```
+
+---
+
+## ⚙️ Setup
+
+### 1. Install Dependencies
+```bash
+pip install ccxt pandas numpy scikit-learn joblib requests pycoingecko colorama
+```
+
+### 2. Configure
+Edit `config.ini`:
+```ini
+[TELEGRAM]
+bot_token = YOUR_BOT_TOKEN
+chat_id   = YOUR_CHAT_ID
+```
+
+### 3. Fetch Data & Train Model (first time)
+```bash
+python ml_enhancements/data_fetcher.py
+python ml_enhancements/train_ppas.py
+```
+This will create `Venus_Market_Data.db` and train both the global model and per-coin models.
+
+### 4. Run the Scanner
+**Option A — Single scan:**
+```bash
+python Venus_Radar_V3.6.py --oneshot
+```
+
+**Option B — Continuous loop (Python):**
+```bash
+python Venus_Radar_V3.6.py
+```
+
+**Option C — Windows auto-loop (recommended):**
+Double-click `Venus_Radar_V3.6.bat`
+
+### 5. Set Up Auto-Retraining (Optional)
+Double-click `auto_retrain_loop.bat` — retrains the model every 7 days automatically.
+
+---
+
+## 📊 How PPAS Works
+
+**PPAS** (Parabolic Price Action Score) is a 0–100 risk score produced by the AI model. It is derived from 12 engineered features:
+
+| # | Feature | Description |
+|---|---|---|
+| 1 | dev_pct | % deviation from 200-period SMA |
+| 2 | streak_penalty | Penalty for sustained one-directional streaks |
+| 3 | sigma_distance | Z-score of current candle vs 1-week volatility |
+| 4 | rsi | RSI (56-period) |
+| 5 | volatility | Rolling 20-candle log return std |
+| 6 | atr_pct | ATR (56) as % of price |
+| 7 | volume_surge | Current volume / 20-period avg volume |
+| 8 | onchain_proxy | Current volume / 100-period avg volume |
+| 9 | liq_attention | (High - Low) / Volume |
+| 10 | ls_ratio | Live Long/Short ratio from Bybit API |
+| 11 | rp | Rebound Probability heuristic |
+| 12 | volume_climax_score | Volume spike × trend consistency (v3.6) |
+
+**MTF Multiplier** (v3.6): After prediction, the raw PPAS is multiplied by 0.85–1.15 based on 1h + 4h trend confirmation.
+
+---
+
+## 🔧 Key Config Options
+
+```ini
+[RADAR]
+risk_threshold_high = 92    ; PPAS above this → alert sent
+risk_threshold_safe = 82    ; PPAS below this → recovery alert
+alert_cooldown = 14400      ; seconds between repeat alerts (4h default)
+top_scan_coins = 100        ; how many coins to scan per cycle
+mtf_enabled = true          ; enable Multi-Timeframe filter
+adaptive_cooldown = true    ; shorten cooldown in volatile markets
+
+[MACHINE_LEARNING]
+n_estimators = 150
+max_depth = 12
+min_samples_per_coin = 2000 ; minimum rows to train a per-coin model
+future_window = 12          ; candles ahead for label generation
+risk_sigma_threshold = 3.0  ; sigma multiplier for adaptive labeling
+```
+
+---
+
+## 📬 Telegram Alert Format
+
+```
+📡 Venus Radar V3.6 — Feb-22 14:30 | ⚡ Adaptive Cooldown: 60m
+
+⛔ BTCUSDT 🧠 [PerCoin]
+PPAS: 95 | Dev: +18.2% | RSI: 78.4
+L/S Ratio: 1.82x | Vol Surge: 3.4x
+Sigma: 4.21σ | VR: 2.8%
+Price: $98,500
+MTF Filter: ▲ Confirmed (×1.15)
+🎯 Up Zone:   $101,200 → $105,800
+🕳️ Down Zone: $95,100 → $90,500
+```
+
+---
+
+## 📈 Daily Recap
+
+Sent automatically at the configured `recap_hour_gmt7`. Includes:
+- All coins flagged during the day with peak PPAS
+- AI win-rate for the session (correct high-risk predictions vs outcomes)
+
+---
+
+## ⚠️ Disclaimer
+
+This tool is for **informational and educational purposes only**. It does not constitute financial advice. Crypto markets are extremely volatile. Always do your own research before making any trading decisions.
